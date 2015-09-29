@@ -1,0 +1,108 @@
+dccp/ccids/ccid2.c:		seqp = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:		if (!seqp->ccid2s_acked)
+dccp/ccids/ccid2.c:			struct ccid2_seq *prev = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:			BUG_ON(dccp_delta_seqno(seqp->ccid2s_seq,
+dccp/ccids/ccid2.c:			BUG_ON(time_before(seqp->ccid2s_sent,
+dccp/ccids/ccid2.c:		seqp = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:	seqp->ccid2s_prev = &seqp[CCID2_SEQBUF_LEN - 1];
+dccp/ccids/ccid2.c:		seqp->ccid2s_prev = hctx->ccid2hctx_seqh;
+dccp/ccids/ccid2.c:				       (unsigned long long)seqp->ccid2s_seq,
+dccp/ccids/ccid2.c:				       seqp->ccid2s_acked, seqp->ccid2s_sent);
+dccp/ccids/ccid2.c:			seqp = seqp->ccid2s_next;
+dccp/ccids/ccid2.c:		unsigned long r = (long)jiffies - (long)seqp->ccid2s_sent;
+dccp/ccids/ccid2.c:				       (unsigned long long)seqp->ccid2s_seq);
+dccp/ccids/ccid2.c:	if (time_before(seqp->ccid2s_sent, hctx->ccid2hctx_last_cong)) {
+dccp/ccids/ccid2.c:	while (before48(seqp->ccid2s_seq, ackno)) {
+dccp/ccids/ccid2.c:		seqp = seqp->ccid2s_next;
+dccp/ccids/ccid2.c:			while (after48(seqp->ccid2s_seq, ackno)) {
+dccp/ccids/ccid2.c:				seqp = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:			while (between48(seqp->ccid2s_seq,ackno_end_rl,ackno)) {
+dccp/ccids/ccid2.c:				    !seqp->ccid2s_acked) {
+dccp/ccids/ccid2.c:					seqp->ccid2s_acked = 1;
+dccp/ccids/ccid2.c:						       (unsigned long long)seqp->ccid2s_seq);
+dccp/ccids/ccid2.c:				seqp = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:	while (before48(seqp->ccid2s_seq, hctx->ccid2hctx_high_ack)) {
+dccp/ccids/ccid2.c:		seqp = seqp->ccid2s_next;
+dccp/ccids/ccid2.c:		if (seqp->ccid2s_acked) {
+dccp/ccids/ccid2.c:		seqp = seqp->ccid2s_prev;
+dccp/ccids/ccid2.c:			if (!seqp->ccid2s_acked) {
+dccp/ccids/ccid2.c:					       (unsigned long long)seqp->ccid2s_seq);
+dccp/ccids/ccid2.c:			seqp = seqp->ccid2s_prev;
+ipv4/inet_fragment.c:		if (qp->net == nf && f->match(qp, arg)) {
+ipv4/inet_fragment.c:			atomic_inc(&qp->refcnt);
+ipv4/inet_fragment.c:	if (!mod_timer(&qp->timer, jiffies + nf->timeout))
+ipv4/inet_fragment.c:		atomic_inc(&qp->refcnt);
+ipv4/inet_fragment.c:	atomic_inc(&qp->refcnt);
+ipv4/inet_fragment.c:	hlist_add_head(&qp->list, &f->hash[hash]);
+ipv4/inet_fragment.c:	list_add_tail(&qp->lru_list, &nf->lru_list);
+ipv4/ip_fragment.c:	return (qp->id == arg->iph->id &&
+ipv4/ip_fragment.c:			qp->saddr == arg->iph->saddr &&
+ipv4/ip_fragment.c:			qp->daddr == arg->iph->daddr &&
+ipv4/ip_fragment.c:			qp->protocol == arg->iph->protocol &&
+ipv4/ip_fragment.c:			qp->user == arg->user);
+ipv4/ip_fragment.c:	qp->protocol = arg->iph->protocol;
+ipv4/ip_fragment.c:	qp->id = arg->iph->id;
+ipv4/ip_fragment.c:	qp->saddr = arg->iph->saddr;
+ipv4/ip_fragment.c:	qp->daddr = arg->iph->daddr;
+ipv4/ip_fragment.c:	qp->user = arg->user;
+ipv4/ip_fragment.c:	qp->peer = sysctl_ipfrag_max_dist ?
+ipv4/ip_fragment.c:	if (qp->peer)
+ipv4/ip_fragment.c:		inet_putpeer(qp->peer);
+ipv4/ip_fragment.c:	net = container_of(qp->q.net, struct net, ipv4.frags);
+ipv4/ip_fragment.c:	spin_lock(&qp->q.lock);
+ipv4/ip_fragment.c:	if (qp->q.last_in & INET_FRAG_COMPLETE)
+ipv4/ip_fragment.c:	if ((qp->q.last_in & INET_FRAG_FIRST_IN) && qp->q.fragments != NULL) {
+ipv4/ip_fragment.c:		struct sk_buff *head = qp->q.fragments;
+ipv4/ip_fragment.c:		if ((head->dev = dev_get_by_index(net, qp->iif)) != NULL) {
+ipv4/ip_fragment.c:	spin_unlock(&qp->q.lock);
+ipv4/ip_fragment.c:	struct inet_peer *peer = qp->peer;		
+ipv4/ip_fragment.c:	start = qp->rid;
+ipv4/ip_fragment.c:	qp->rid = end;
+ipv4/ip_fragment.c:	rc = qp->q.fragments && (end - start) > max;
+ipv4/ip_fragment.c:		net = container_of(qp->q.net, struct net, ipv4.frags);
+ipv4/ip_fragment.c:	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
+ipv4/ip_fragment.c:		atomic_inc(&qp->q.refcnt);
+ipv4/ip_fragment.c:	fp = qp->q.fragments;
+ipv4/ip_fragment.c:		frag_kfree_skb(qp->q.net, fp, NULL);
+ipv4/ip_fragment.c:	qp->q.last_in = 0;
+ipv4/ip_fragment.c:	qp->q.len = 0;
+ipv4/ip_fragment.c:	qp->q.meat = 0;
+ipv4/ip_fragment.c:	qp->q.fragments = NULL;
+ipv4/ip_fragment.c:	qp->iif = 0;
+ipv4/ip_fragment.c:	if (qp->q.last_in & INET_FRAG_COMPLETE)
+ipv4/ip_fragment.c:		if (end < qp->q.len ||
+ipv4/ip_fragment.c:		    ((qp->q.last_in & INET_FRAG_LAST_IN) && end != qp->q.len))
+ipv4/ip_fragment.c:		qp->q.last_in |= INET_FRAG_LAST_IN;
+ipv4/ip_fragment.c:		qp->q.len = end;
+ipv4/ip_fragment.c:		if (end > qp->q.len) {
+ipv4/ip_fragment.c:			if (qp->q.last_in & INET_FRAG_LAST_IN)
+ipv4/ip_fragment.c:			qp->q.len = end;
+ipv4/ip_fragment.c:	for (next = qp->q.fragments; next != NULL; next = next->next) {
+ipv4/ip_fragment.c:			qp->q.meat -= i;
+ipv4/ip_fragment.c:				qp->q.fragments = next;
+ipv4/ip_fragment.c:			qp->q.meat -= free_it->len;
+ipv4/ip_fragment.c:			frag_kfree_skb(qp->q.net, free_it, NULL);
+ipv4/ip_fragment.c:		qp->q.fragments = skb;
+ipv4/ip_fragment.c:		qp->iif = dev->ifindex;
+ipv4/ip_fragment.c:	qp->q.stamp = skb->tstamp;
+ipv4/ip_fragment.c:	qp->q.meat += skb->len;
+ipv4/ip_fragment.c:	atomic_add(skb->truesize, &qp->q.net->mem);
+ipv4/ip_fragment.c:		qp->q.last_in |= INET_FRAG_FIRST_IN;
+ipv4/ip_fragment.c:	if (qp->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
+ipv4/ip_fragment.c:	    qp->q.meat == qp->q.len)
+ipv4/ip_fragment.c:	list_move_tail(&qp->q.lru_list, &qp->q.net->lru_list);
+ipv4/ip_fragment.c:	struct net *net = container_of(qp->q.net, struct net, ipv4.frags);
+ipv4/ip_fragment.c:	struct sk_buff *fp, *head = qp->q.fragments;
+ipv4/ip_fragment.c:		skb_morph(head, qp->q.fragments);
+ipv4/ip_fragment.c:		head->next = qp->q.fragments->next;
+ipv4/ip_fragment.c:		kfree_skb(qp->q.fragments);
+ipv4/ip_fragment.c:		qp->q.fragments = head;
+ipv4/ip_fragment.c:	len = ihlen + qp->q.len;
+ipv4/ip_fragment.c:		atomic_add(clone->truesize, &qp->q.net->mem);
+ipv4/ip_fragment.c:	atomic_sub(head->truesize, &qp->q.net->mem);
+ipv4/ip_fragment.c:		atomic_sub(fp->truesize, &qp->q.net->mem);
+ipv4/ip_fragment.c:	head->tstamp = qp->q.stamp;
+ipv4/ip_fragment.c:	qp->q.fragments = NULL;
+ipv4/ip_fragment.c:			&qp->saddr);
+ipv4/ip_fragment.c:		spin_lock(&qp->q.lock);
+ipv4/ip_fragment.c:		spin_unlock(&qp->q.lock);
