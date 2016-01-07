@@ -15,7 +15,7 @@ struct netns_frags {
 struct inet_frag_queue {
 	struct hlist_node	list;
 	struct netns_frags	*net;
-	struct list_head	lru_list;   /* lru list member */
+	struct list_head	lru_list;   /* lru list member */		//这个链表在该结构体中貌似只是为了在判断结构体中是否还有节点使用
 	spinlock_t		lock;
 	atomic_t		refcnt;
 	struct timer_list	timer;      /* when will this queue expire? */

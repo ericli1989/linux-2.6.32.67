@@ -298,6 +298,9 @@ static int nf_conntrack_standalone_init_proc(struct net *net)
 	struct proc_dir_entry *pde;
 
 	pde = proc_net_fops_create(net, "nf_conntrack", 0440, &ct_file_ops);
+	// proc_net_fops_create 实际上就是调用的邋proc_crate
+	// 上面的代码可以认为是
+	// pde = proc_create("nf_conntrack", 0440, net_proc_net, &ct_file_ops);
 	if (!pde)
 		goto out_nf_conntrack;
 
@@ -475,14 +478,17 @@ static int nf_conntrack_net_init(struct net *net)
 {
 	int ret;
 
+	//真正的初始化
 	ret = nf_conntrack_init(net);
 	if (ret < 0)
 		goto out_init;
+	 //初始化/proc/net/nf_conntrack
 	ret = nf_conntrack_standalone_init_proc(net);
 	if (ret < 0)
 		goto out_proc;
 	net->ct.sysctl_checksum = 1;
 	net->ct.sysctl_log_invalid = 0;
+	//初始化/proc/sys/net/netfilter
 	ret = nf_conntrack_standalone_init_sysctl(net);
 	if (ret < 0)
 		goto out_sysctl;

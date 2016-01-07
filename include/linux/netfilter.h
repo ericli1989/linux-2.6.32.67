@@ -100,9 +100,12 @@ struct nf_hook_ops
 	/* User fills in from here down. */
 	nf_hookfn *hook;
 	struct module *owner;
-	u_int8_t pf;
+	u_int8_t pf;	//pf与hooknum一起索引到特定协议特定编号的勾子函数队列，用于索引nf_hooks
 	unsigned int hooknum;
-	/* Hooks are ordered in ascending priority. */
+	/* 
+	Hooks are ordered in ascending priority. 
+	priority决定在同一队列(pf与hooknum相同)的顺序，priority越小则排列越靠前。
+	*/
 	int priority;
 };
 

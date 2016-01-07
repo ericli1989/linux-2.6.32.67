@@ -22,7 +22,7 @@
 static int nf_ct_ipv4_gather_frags(struct sk_buff *skb, u_int32_t user)
 {
 	int err;
-
+	/* 使包成为不属于任何套接字的孤包  */
 	skb_orphan(skb);
 
 	local_bh_disable();

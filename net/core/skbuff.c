@@ -793,7 +793,10 @@ EXPORT_SYMBOL(pskb_copy);
  *	All the pointers pointing into skb header may change and must be
  *	reloaded after call to this function.
  */
-
+/* pskb_expand_head()根据指定长度重新扩展headroom和tailroom的空间
+由于原先的线性空间已经固定，因此需要重新分配空间来扩展线性空间。
+该函数只是扩展数据区，不会修改SKB本身，且待扩展的SKB的引用计数users必须为1。
+如果返回0表示扩展成功，否则原线性数据区不变。 */
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		     gfp_t gfp_mask)
 {
@@ -1080,12 +1083,17 @@ int ___pskb_trim(struct sk_buff *skb, unsigned int len)
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	int i;
 	int err;
-
+	
+	/* 若该skb被克隆过，那么对数据缓冲区获取一份私有的拷贝，因为该函数
+	 * 会对数据缓冲区进行修改，因此要确保数据缓冲区是独占的 */
 	if (skb_cloned(skb) &&
 	    unlikely((err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC))))
 		return err;
 
 	i = 0;
+	/* offset 是线性数据缓冲区的长度，len是要裁减到的长度，offset大于等于len，
+     * 说明线性缓冲区有一部分数据是多余的，而非线性缓冲区的数据都是多余的，因此
+     * 需要把非线性缓冲区释放掉。 */
 	if (offset >= len)
 		goto drop_pages;
 
@@ -1105,6 +1113,7 @@ drop_pages:
 		for (; i < nfrags; i++)
 			put_page(skb_shinfo(skb)->frags[i].page);
 
+	/* 整个frag_list中的所有skb的数据都是多余...全部释放 */
 		if (skb_has_frags(skb))
 			skb_drop_fraglist(skb);
 		goto done;
@@ -1305,6 +1314,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		goto fault;
 
 	/* Copy header. */
+	/*拷贝在本页中的部分*/
 	if ((copy = start - offset) > 0) {
 		if (copy > len)
 			copy = len;
@@ -1315,6 +1325,7 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 		to     += copy;
 	}
 
+	/*拷贝本skb中其他碎片的部分*/
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		int end;
 

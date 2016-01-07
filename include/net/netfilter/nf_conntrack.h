@@ -91,18 +91,30 @@ struct nf_conn_help {
 struct nf_conn {
 	/* Usage count in here is 1 for hash table/destruct timer, 1 per skb,
            plus 1 for any connection(s) we are `master' for */
+    /* 连接跟踪的引用计数 */
 	struct nf_conntrack ct_general;
 
 	spinlock_t lock;
 
 	/* XXX should I move this to the tail ? - Y.K */
 	/* These are my tuples; original and reply */
+	/* Connection tracking(链接跟踪)用来跟踪、记录每个链接的信息(目前仅支持IP协议的连接跟踪)。
+            每个链接由“tuple”来唯一标识，这里的“tuple”对不同的协议会有不同的含义，例如对tcp,udp
+                 来说就是五元组: (源IP，源端口，目的IP, 目的端口，协议号)，对ICMP协议来说是: (源IP, 目
+            的IP, id, type, code), 其中id,type与code都是icmp协议的信息。链接跟踪是防火墙实现状态检
+            测的基础，很多功能都需要借助链接跟踪才能实现，例如NAT、快速转发、等等。*/
 	struct nf_conntrack_tuple_hash tuplehash[IP_CT_DIR_MAX];
 
 	/* Have we seen traffic both ways yet? (bitset) */
+	/* 可以设置由enum ip_conntrack_status中描述的状态 */
 	unsigned long status;
 
-	/* If we were expected by an expectation, this will be it */
+	/* 
+	If we were expected by an expectation, this will be it
+	该成员指向另外一个nf_conn{}。一般用于期望连接场景。
+	即如果当前连接是另外某条连接的期望连接的话，
+	那么该成员就指向那条我们所属的主连接。
+	*/
 	struct nf_conn *master;
 
 	/* Timer function; drops refcnt when it goes off. */

@@ -28,6 +28,9 @@ struct nf_conntrack_l3proto
 	 * Try to fill in the third arg: nhoff is offset of l3 proto
          * hdr.  Return true if possible.
 	 */
+	 /* 
+		根据报文填充tuple，如ipv4则填充tuple->src.u3.ip和tuple->dst.u3.ip
+	 */
 	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int nhoff,
 			     struct nf_conntrack_tuple *tuple);
 

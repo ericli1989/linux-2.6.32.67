@@ -25,6 +25,9 @@ struct nf_conntrack_l4proto
 
 	/* Try to fill in the third arg: dataoff is offset past network protocol
            hdr.  Return true if possible. */
+    /* 
+		根据报文填充tuple， 如tcp则填充tuple->src.u.tcp.port和tuple->dst.u.tcp.port
+	 */       
 	bool (*pkt_to_tuple)(const struct sk_buff *skb, unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple);
 

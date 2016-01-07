@@ -232,6 +232,13 @@ int nf_conntrack_helper_init(void)
 	int err;
 
 	nf_ct_helper_hsize = 1; /* gets rounded up to use one page */
+	/* 申请hash内存 */
+	/* nf_ct_helper_vmalloc 为nf_ct_helper hash 内存是否使用vmalloc 标志，
+		实际上就是相应hash 内存是否使用连续内存
+		1 : 使用非连续内存 (  vmalloc申请)
+		0 : 使用连续内存(   __get_free_pages 申请)
+	     注意:  内存释放时也要区别对待
+	*/
 	nf_ct_helper_hash = nf_ct_alloc_hashtable(&nf_ct_helper_hsize,
 						  &nf_ct_helper_vmalloc, 0);
 	if (!nf_ct_helper_hash)

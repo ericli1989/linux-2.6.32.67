@@ -159,6 +159,7 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
+/* ip分片占用内存超过配置阈值，删除frag链上老旧节点，回收内存*/
 int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 {
 	struct inet_frag_queue *q;
@@ -291,7 +292,8 @@ struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 	struct hlist_node *n;
 
 	hlist_for_each_entry(q, n, &f->hash[hash], list) {
-		if (q->net == nf && f->match(q, key)) {
+		/* net名称空间相等，且匹配函数返回true，则表示为正确的分片队列 */
+		if (q->net == nf && f->match(q, key)) {		// match 调用函数ip4_frag_match() 用于比较struct ip4_create_arg key是否相同
 			atomic_inc(&q->refcnt);
 			read_unlock(&f->lock);
 			return q;

@@ -122,6 +122,7 @@ void *__nf_ct_ext_add(struct nf_conn *ct, enum nf_ct_ext_id id, gfp_t gfp)
 }
 EXPORT_SYMBOL(__nf_ct_ext_add);
 
+/* 重新计算相应内存大小 */
 static void update_alloc_size(struct nf_ct_ext_type *type)
 {
 	int i, j;

@@ -57,7 +57,7 @@ struct nf_conntrack_man
 	union nf_inet_addr u3;
 	union nf_conntrack_man_proto u;
 	/* Layer 3 protocol */
-	u_int16_t l3num;
+	u_int16_t l3num;		// pf  Protocol families
 };
 
 /* This contains the information to distinguish a connection. */
@@ -93,7 +93,7 @@ struct nf_conntrack_tuple
 		} u;
 
 		/* The protocol. */
-		u_int8_t protonum;
+		u_int8_t protonum;		// 在nf_ct_get_tuple 中填充,IP头上带 的protocol
 
 		/* The direction (for tuplehash) */
 		u_int8_t dir;

@@ -117,6 +117,7 @@ static unsigned int ipv4_confirm(unsigned int hooknum,
 		goto out;
 
 	/* rcu_read_lock()ed by nf_hook_slow */
+	/* 如果该connection track还有helper扩展，需要执行其回调函数，一般可以用于ALG */
 	helper = rcu_dereference(help->helper);
 	if (!helper)
 		goto out;

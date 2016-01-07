@@ -259,7 +259,7 @@ out_nomem:
 /* Is the fragment too far ahead to be part of ipq? */
 static inline int ip_frag_too_far(struct ipq *qp)
 {
-	/* 这个peer端没有弄明白 */
+	/* 这个peer端没有弄明白，到底是个什么概念 */
 	struct inet_peer *peer = qp->peer;		
 	/* 系统默认sysctl_ipfrag_max_dist = 64 ，当然可以修改 */
 	unsigned int max = sysctl_ipfrag_max_dist;			
@@ -272,6 +272,7 @@ static inline int ip_frag_too_far(struct ipq *qp)
 
 	start = qp->rid;
 	end = atomic_inc_return(&peer->rid);
+	/* 如果只是判断end-start的话，为什么这里还要对rid赋值为end，end还是peer->rid +1 */
 	qp->rid = end;
 
 	rc = qp->q.fragments && (end - start) > max;
@@ -327,7 +328,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	/*
 	     1. IPCB(skb)->flags只有在本机发送IPv4分片时 (ip_output.c   ip_fragment函数中)被置位，那么这里的检查应该是
 	     预防收到本机自己发出的IP分片。
-	     2. 关于ip_frag_too_far：检查碎片是否间隔过远，如果中间间隔超过64个报文无法完成重组，协议栈就不再支持
+	     2. 关于ip_frag_too_far：检查碎片是否间隔过远???，如果中间间隔超过64个报文无法完成重组，协议栈就不再支持
 	     3. 前面两个条件为真时，调用ip_frag_reinit，重新初始化该队列。出错，那么只好kill掉这个队列了。
        */
 	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
@@ -361,7 +362,9 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		if (end < qp->q.len ||
 		    ((qp->q.last_in & INET_FRAG_LAST_IN) && end != qp->q.len))
 			goto err;
+		 /* 置INET_FRAG_LAST_IN标志，表示收到了最后一个分片 */
 		qp->q.last_in |= INET_FRAG_LAST_IN;
+		 /* IP包总长度就等于end */
 		qp->q.len = end;
 	} else {
 		if (end&7) {
@@ -380,6 +383,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		       */
 			if (qp->q.last_in & INET_FRAG_LAST_IN)
 				goto err;
+			/* 更新IP总长度 */
 			qp->q.len = end;
 		}
 	}
@@ -388,9 +392,11 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		goto err;
 
 	err = -ENOMEM;
+	/* 偏移ip头长度 */
 	if (pskb_pull(skb, ihl) == NULL)
 		goto err;
-
+	/* 实际调研___pskb_trim()  ___pskb_trim函数针对skb中存在非线性数据的情形，将skb的数据长度裁减到len长度，最终skb->len = len
+ * 多余的数据会被clean掉。 */
 	err = pskb_trim_rcsum(skb, end - offset);
 	if (err)
 		goto err;
@@ -399,6 +405,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * in the chain of fragments so far.  We must know where to put
 	 * this fragment, right?
 	 */
+	 /* 有序挂链 */
 	prev = NULL;
 	for (next = qp->q.fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
@@ -410,17 +417,21 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * preceding fragment, and, if needed, align things so that
 	 * any overlaps are eliminated.
 	 */
+	 /* 现在已经找到了正确的插入位置，但是可能与已有的IP分片重叠，下面需要处理overlap 重叠问题 */ 
 	if (prev) {
 		int i = (FRAG_CB(prev)->offset + prev->len) - offset;
 
 		if (i > 0) {
+			 /* 与前一个分片有重叠，那么新的偏移量为上一个分片的末尾 */
 			offset += i;
 			err = -EINVAL;
+			 /* end如果小于了新的偏移，出错了，drop掉这个分片 */
 			if (end <= offset)
 				goto err;
 			err = -ENOMEM;
 			if (!pskb_pull(skb, i))
 				goto err;
+			/* 使checksum无效 */
 			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
 				skb->ip_summed = CHECKSUM_NONE;
 		}
@@ -429,9 +440,12 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	err = -ENOMEM;
 
 	while (next && FRAG_CB(next)->offset < end) {
+		/* 与已有的后面的IP分片重叠，这里使用while循环，是因为可能与多个重叠
+		这里的初始next是挂链节点的后一个节点*/
 		int i = end - FRAG_CB(next)->offset; /* overlap is 'i' bytes */
 
 		if (i < next->len) {
+			/* 与后面的IP分片头部重叠。那么就更新后面的IP分片的偏移即可。这时无需继续测试，可以跳出循 环 */ 
 			/* Eat head of the next overlapped fragment
 			 * and leave the loop. The next ones cannot overlap.
 			 */
@@ -443,6 +457,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 				next->ip_summed = CHECKSUM_NONE;
 			break;
 		} else {
+		/* 重叠部分覆盖已有的IP分片，那么可以将已有的IP分片释放， 然后继续测试下一个分片 */
 			struct sk_buff *free_it = next;
 
 			/* Old fragment is completely overridden with
@@ -459,7 +474,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 			frag_kfree_skb(qp->q.net, free_it, NULL);
 		}
 	}
-
+	/* 已经处理完了重叠问题，offset为新的偏移量 */
 	FRAG_CB(skb)->offset = offset;
 
 	/* Insert this fragment in the chain of fragments. */
@@ -477,13 +492,17 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
 	atomic_add(skb->truesize, &qp->q.net->mem);
+	/* 偏移为0，说明是第一个分片 */
 	if (offset == 0)
 		qp->q.last_in |= INET_FRAG_FIRST_IN;
-
+	/* 
+		如果已经收到了第一个分片和最后一个分片，且收到的IP分片的长度也等于了原始的IP长度。
+		那么说明一切就绪，可以重组IP分片了。
+	*/
 	if (qp->q.last_in == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    qp->q.meat == qp->q.len)
 		return ip_frag_reasm(qp, prev, dev);
-
+	/* IP分片还未全部收齐 */
 	write_lock(&ip4_frags.lock);
 	list_move_tail(&qp->q.lru_list, &qp->q.net->lru_list);
 	write_unlock(&ip4_frags.lock);
@@ -496,7 +515,7 @@ err:
 
 
 /* Build a new IP datagram from all its fragments. */
-
+/*  分片重组具体函数  */
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			 struct net_device *dev)
 {
@@ -506,11 +525,17 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	int len;
 	int ihlen;
 	int err;
-
+	/* kill掉该IP队列 */
 	ipq_kill(qp);
 
 	/* Make the one we just received the head. */
+	/* 当prev不为null时，head=prev->next，即当前收到的这个分片，也就是把刚收到的这个分片当作head。
+	当prev为null时，qp->q.fragments就是刚收到的分片 */
 	if (prev) {
+		 /* 
+	        如果最后插入的分片不是第一个分片，前面还有分片，
+	        将最后插入的分片作为整个分片队列的第一个分片
+	        */
 		head = prev->next;
 		fp = skb_clone(head, GFP_ATOMIC);
 		if (!fp)
@@ -518,13 +543,24 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 
 		fp->next = head->next;
 		prev->next = fp;
-
+		/*
+		由于已经用fp代替了head，将head变异为队列中第一个数据分组，
+		即清空其原来内容，只保留一个sk_buff框架，然后复制第一个数据分片内容
+		*/	
 		skb_morph(head, qp->q.fragments);
 		head->next = qp->q.fragments->next;
-
-		kfree_skb(qp->q.fragments);
+		/* 
+		释放原来的第一个数据分片结构
+		*/
+		kfree_skb(qp->q.fragments);	
 		qp->q.fragments = head;
 	}
+	/* 
+		 ok，现在head肯定为刚刚收到的分片。
+		 大胆猜测一下用意，因为刚收到的IP分片里面的IP信息是最新的，
+		 所有选择它作为head，用于生成重组后的IP包。
+		 比如也许会有一些新的IP option等。
+	*/
 
 	WARN_ON(head == NULL);
 	WARN_ON(FRAG_CB(head)->offset != 0);
@@ -534,18 +570,29 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	len = ihlen + qp->q.len;
 
 	err = -E2BIG;
+	/* 如果主数据块大于65536字节，出错，说明tcp\udp数据报最大长度为64K */
 	if (len > 65535)
 		goto out_oversize;
 
 	/* Head of list must not be cloned. */
+	/*
+	验证内存空间确保有必要空间，因为重组分片需要申请新的内存空间；
+	第一个数据报分片作为主数据报结构，确保该数据报分片的正确性
+	*/
 	if (skb_cloned(head) && pskb_expand_head(head, 0, 0, GFP_ATOMIC))
 		goto out_nomem;
 
 	/* If the first fragment is fragmented itself, we split
 	 * it to two chunks: the first with data and paged part
 	 * and the second, holding only fragments. */
+	 //如果第一个数据分片中有分片数据，将她的分片转移到ip分片队列中
 	if (skb_has_frags(head)) {
-		struct sk_buff *clone;
+		/* 
+		这里的分片不同于IP分片。因为skb存储数据的时候有两种方式，
+		一个是存储在skb自身的空间，另外一 种是申请一个page，
+		数据存储在该page中。当使用后者的方式时，skb_has_frags为true 
+		*/
+ 		struct sk_buff *clone;
 		int i, plen = 0;
 
 		if ((clone = alloc_skb(0, GFP_ATOMIC)) == NULL)
@@ -563,28 +610,46 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		clone->ip_summed = head->ip_summed;
 		atomic_add(clone->truesize, &qp->q.net->mem);
 	}
-
+	/* 
+     将后面的分片赋给head->frag_list。
+     这里所做的IP分片重组，并不是真的生成一个完整的独立的IP分片，而是将后面的分片挂载到head分片的frag_list上。
+     */
+     // 实际上是skb_shinfo(head)->frag_list = qp->q.fragments->next;
 	skb_shinfo(head)->frag_list = head->next;
+	//调整第一个分片的数据分片起始位置，使其包含ip头部
 	skb_push(head, head->data - skb_network_header(head));
 	atomic_sub(head->truesize, &qp->q.net->mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
+		/* 形成整体数据报的结构，存于head中，分片从下一个开始 */
+
+		//累加每一个数据分片长度
 		head->data_len += fp->len;
 		head->len += fp->len;
 		if (head->ip_summed != fp->ip_summed)
 			head->ip_summed = CHECKSUM_NONE;
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
+		//主数据分片的实际长度[大于len，实际分配的内存]累加每一个分片的实际长度
 		head->truesize += fp->truesize;
 		atomic_sub(fp->truesize, &qp->q.net->mem);
 	}
-
+	//断开与分片队列的关系
 	head->next = NULL;
 	head->dev = dev;
+	//记录时间戳
 	head->tstamp = qp->q.stamp;
-
+	/*
+	修复主数据报的IP头部结构,可见对一个分组后的每个ip分片而言，
+	其各自的ip头部中tot_len为该分片中的数据长度+ip头部长度，显然小于1500MTU值，
+	而整合分片时，所有分片组合后的最终总和由前面代码看出必须小于65536，
+	所以当从传输层传下来数据时，大小必须小于65530，
+	即udp和tcp中每次传输文件的大小小于65536。
+	*/
+	//取得主数据包的IP头部结构，刚才sk_buff->data前移包含了ip头部
 	iph = ip_hdr(head);
 	iph->frag_off = 0;
+	// len=ihlen + qp->q.len,此时tot_len字段为整个数据报的长度[含ip头部]
 	iph->tot_len = htons(len);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;

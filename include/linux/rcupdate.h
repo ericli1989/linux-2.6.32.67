@@ -253,6 +253,11 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * code.
  */
 
+
+/*
+写者使用该函数来为被RCU保护的指针分配一个新的值.
+这样是为了安全从写者到读者更改其值.这个函数会返回一个新值
+*/
 #define rcu_assign_pointer(p, v) \
 	({ \
 		if (!__builtin_constant_p(v) || \

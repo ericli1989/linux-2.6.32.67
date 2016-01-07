@@ -65,6 +65,10 @@ EXPORT_SYMBOL(kstrndup);
  * @len: memory region length
  * @gfp: GFP mask to use
  */
+/*
+该函数是根据给定的一段地址区间，再分配一个内存空间，
+ 将原地址空间的内容拷贝到新分配的内存空间中。
+*/
 void *kmemdup(const void *src, size_t len, gfp_t gfp)
 {
 	void *p;

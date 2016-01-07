@@ -332,7 +332,7 @@ struct sk_buff {
 	char			cb[48];
 
 	unsigned int		len,
-				data_len;
+				data_len;		//skb->data_len表示在其他页的数据长度（包括本skb在其他页中的数据以及分片skb中的数据），
 	__u16			mac_len,
 				hdr_len;
 	union {
@@ -1059,6 +1059,13 @@ static inline int skb_is_nonlinear(const struct sk_buff *skb)
 
 static inline unsigned int skb_headlen(const struct sk_buff *skb)
 {
+	/* 
+	其中skb->len是数据包长度，在IPv4中就是单个完整IP包的总长，
+	但这些数据并不一定都在当前内存页；
+	skb->data_len表示在其他页的数据长度（包括本skb在其他页中的数据以及分片skb中的数据），
+	因此skb->len - skb->data_len表示在当前页的数据大小。
+
+	*/
 	return skb->len - skb->data_len;
 }
 
@@ -1804,9 +1811,13 @@ extern int	       skb_shift(struct sk_buff *tgt, struct sk_buff *skb,
 
 extern struct sk_buff *skb_segment(struct sk_buff *skb, int features);
 
+/* 先判断要处理的数据是否都在当前页面内，如果是，
+则返回可以直接对数据处理，返回所求数据指针，
+否则用skb_copy_bits()函数进行拷贝。 */
 static inline void *skb_header_pointer(const struct sk_buff *skb, int offset,
 				       int len, void *buffer)
 {
+	/* 获取当前页的数据大小 */
 	int hlen = skb_headlen(skb);
 
 	if (hlen - offset >= len)

@@ -343,10 +343,12 @@ int nf_conntrack_proto_init(void)
 	unsigned int i;
 	int err;
 
+	/* 调用函数里面存着kzalloc内存申请 */
 	err = nf_ct_l4proto_register_sysctl(&nf_conntrack_l4proto_generic);
 	if (err < 0)
 		return err;
 
+	/* nf_ct_l3protos[i] = &nf_conntrack_l3proto_generic 赋值操作??? */
 	for (i = 0; i < AF_MAX; i++)
 		rcu_assign_pointer(nf_ct_l3protos[i],
 				   &nf_conntrack_l3proto_generic);
@@ -361,5 +363,10 @@ void nf_conntrack_proto_fini(void)
 
 	/* free l3proto protocol tables */
 	for (i = 0; i < PF_MAX; i++)
+	/*
+  注意: nf_ct_protos 是二维数组nf_ct_protos[l4proto->l3proto][l4proto->l4proto] 
+		不要被static struct nf_conntrack_l4proto **nf_ct_protos[PF_MAX] __read_mostly;  欺骗了	
+		l3proto protocol tables 的申请在哪里?
+	*/
 		kfree(nf_ct_protos[i]);
 }

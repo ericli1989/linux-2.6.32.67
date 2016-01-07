@@ -318,7 +318,7 @@ begin:
 	/*
 	 * if the nulls value we got at the end of this lookup is
 	 * not the expected one, we must restart lookup.
-	 * We probably met an item that was moved to another chain.
+	 * We probably met an item that was moved to another chain		????? 为什么有这种情况发生local_bh_disable 不能避免吗 ????
 	 */
 	if (get_nulls_value(n) != hash)
 		goto begin;
@@ -344,6 +344,10 @@ begin:
 			     !atomic_inc_not_zero(&ct->ct_general.use)))
 			h = NULL;
 		else {
+			/* 
+			这里为什么还要进行一次课nf_ct_tuple_equal
+			在__nf_conntrack_find 查找匹配的conntrack时已经调用了一次nf_ct_tuple_equal
+			*/
 			if (unlikely(!nf_ct_tuple_equal(tuple, &h->tuple))) {
 				nf_ct_put(ct);
 				goto begin;
@@ -636,6 +640,7 @@ init_conntrack(struct net *net,
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_expect *exp;
 
+	/* 创建反向tuple ，注意conntrack中一条连接会有正反向两条conntrack */
 	if (!nf_ct_invert_tuple(&repl_tuple, tuple, l3proto, l4proto)) {
 		pr_debug("Can't invert tuple.\n");
 		return NULL;
@@ -715,6 +720,7 @@ resolve_normal_ct(struct net *net,
 	struct nf_conntrack_tuple_hash *h;
 	struct nf_conn *ct;
 
+	/* tuple数据填充 */
 	if (!nf_ct_get_tuple(skb, skb_network_offset(skb),
 			     dataoff, l3num, protonum, &tuple, l3proto,
 			     l4proto)) {
@@ -746,6 +752,7 @@ resolve_normal_ct(struct net *net,
 		} else if (test_bit(IPS_EXPECTED_BIT, &ct->status)) {
 			pr_debug("nf_conntrack_in: related packet for %p\n",
 				 ct);
+			/* 关联会话 expected conntrack */
 			*ctinfo = IP_CT_RELATED;
 		} else {
 			pr_debug("nf_conntrack_in: new packet for %p\n", ct);
@@ -772,6 +779,9 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	int ret;
 
 	/* Previously seen (loopback or untracked)?  Ignore. */
+	/* 当skb->nfct为有效值时，即意味着该skb已经经过了conn track，再次落到conn track时。
+     如注释所说，比如发往回环的时候，会有这个情况。
+      */
 	if (skb->nfct) {
 		NF_CT_STAT_INC_ATOMIC(net, ignore);
 		return NF_ACCEPT;
@@ -779,6 +789,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 
 	/* rcu_read_lock()ed by nf_hook_slow */
 	l3proto = __nf_ct_l3proto_find(pf);
+	/* 获取四层地址和协议号 */
 	ret = l3proto->get_l4proto(skb, skb_network_offset(skb),
 				   &dataoff, &protonum);
 	if (ret <= 0) {
@@ -801,7 +812,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 			return -ret;
 		}
 	}
-
+	/* 根据L3和L4层的信息，得到conn track和其信息。 */
 	ct = resolve_normal_ct(net, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
@@ -1279,6 +1290,7 @@ static int nf_conntrack_init_init_net(void)
 	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
 	       nf_conntrack_max);
 
+	 //重置conn track需要调用的l3和l4的协议钩子
 	ret = nf_conntrack_proto_init();
 	if (ret < 0)
 		goto err_proto;
@@ -1322,12 +1334,14 @@ static int nf_conntrack_init_net(struct net *net)
 		goto err_stat;
 	}
 
+	// 初始化该命名空间下连接跟踪slab缓冲区名字
 	net->ct.slabname = kasprintf(GFP_KERNEL, "nf_conntrack_%p", net);
 	if (!net->ct.slabname) {
 		ret = -ENOMEM;
 		goto err_slabname;
 	}
 
+	// 创建该命名空间下连接跟踪的slab缓冲区
 	net->ct.nf_conntrack_cachep = kmem_cache_create(net->ct.slabname,
 							sizeof(struct nf_conn), 0,
 							SLAB_DESTROY_BY_RCU, NULL);
@@ -1384,6 +1398,7 @@ int nf_conntrack_init(struct net *net)
 	int ret;
 
 	if (net_eq(net, &init_net)) {
+		//初始化init_net。init_net为kernel默认的net命名空间
 		ret = nf_conntrack_init_init_net();
 		if (ret < 0)
 			goto out_init_net;
@@ -1398,6 +1413,9 @@ int nf_conntrack_init(struct net *net)
 		rcu_assign_pointer(nf_ct_destroy, destroy_conntrack);
 
 		/* Howto get NAT offsets */
+		/* 对于nf_ct_nat_offset，这里赋给的是null。
+         		在nf_nat_init中，赋给nf_ct_nat_offset真正的初始化值nf_nat_get_offset。
+         	*/
 		rcu_assign_pointer(nf_ct_nat_offset, NULL);
 	}
 	return 0;
